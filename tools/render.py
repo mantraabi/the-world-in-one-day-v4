@@ -49,6 +49,7 @@ image = Image.new("RGB", (W * S, W * S), PAPER)
 draw = ImageDraw.Draw(image)
 _fonts: dict[tuple[int, str], ImageFont.FreeTypeFont] = {}
 _cells: list[dict] = []
+_rules: list[tuple[float, float, float]] = []
 _placed: list[dict] = []
 _issues: list[str] = []
 
@@ -144,6 +145,7 @@ def para(x: float, y: float, s: str, size: float, face: str, width: float,
 
 
 def hair(x0: float, y: float, x1: float, color=RULE, width: float = 1.0) -> None:
+    _rules.append((y, x0, x1))
     draw.line([(P(x0), P(y)), (P(x1), P(y))], fill=color, width=max(1, P(width)))
 
 
@@ -427,10 +429,10 @@ def header() -> None:
         size -= 1
         date_w = tw(content.DATE, size, "serif", 0.5) + 0.5 * (len(content.DATE) - 1)
     caps(content.DATE, size, "serif", M, 56, color=INK, tracking=0.5, limit=CW, cell="header", name="date")
-    para(W - M - stand_w, 62, "Everything here was reported, or first published, on Thursday. "
+    para(W - M - stand_w, 54, "Everything here was reported, or first published, on Thursday. "
          f"{content.story_count()} stories from six regions, drawn in code on one sheet, "
          "so that the day can be read at a glance.",
-         11.6, "sans", stand_w, 14.6, 5, color=INK, cell="header", name="standfirst")
+         11.4, "sans", stand_w, 13.2, 5, color=INK, cell="header", name="standfirst")
 
     hair(M, 100, W - M, color=INK, width=2.4)
     hair(M, 104, W - M, color=RULE, width=0.8)
@@ -603,6 +605,14 @@ def audit() -> dict:
             oy = min(ay1, by1) - max(ay0, by0)
             if ox > 0.9 and oy > 0.9:
                 _issues.append(f"overlap {a['name']} / {b['name']} by {ox:.1f}x{oy:.1f}")
+    # a rule that runs through a line of text reads, at thumbnail size, as garbled
+    for p in _placed:
+        for ry, rx0, rx1 in _rules:
+            if p["x"] + p["w"] < rx0 - 1 or p["x"] > rx1 + 1:
+                continue
+            if p["y"] + 1.0 < ry < p["y"] + p["h"] - 1.0:
+                _issues.append(f"{p['cell']}/{p['name']}: a rule at y={ry:.1f} runs through this text")
+                break
     boxes = {c["name"]: c["box"] for c in _cells}
     for p in _placed:
         b = boxes.get(p["cell"])
